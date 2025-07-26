@@ -45,6 +45,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="groups"
+        options={{
+          title: 'Groups',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="folder" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="calendar"
         options={{
           title: 'History',
