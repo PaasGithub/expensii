@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 
 import { IconSymbol } from '../components/ui/IconSymbol';
 import HapticTab  from '../components/HapticTab';
+import MediaTab from '../components/MediaTab';
 
 
 
@@ -24,17 +25,23 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="media"
+        options={{
+          title: 'Media',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.circle.fill" color={color} />,
+          tabBarButton: MediaTab,
+        }}
+      />
+      <Tabs.Screen
         name="audio"
         options={{
-          title: 'Audio',
-          tabBarIcon: ({ color }) => <IconSymbol size={25} name="mic.badge.plus" color={color} />,
+          href: null, // This hides the tab from the tab bar
         }}
       />
       <Tabs.Screen
         name="camera"
         options={{
-          title: 'Camera',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.badge.ellipsis" color={color} />,
+          href: null, // This hides the tab from the tab bar
         }}
       />
       <Tabs.Screen
