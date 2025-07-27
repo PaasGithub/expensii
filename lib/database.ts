@@ -126,20 +126,36 @@ export const deleteItem = async (id: string, group_id: string): Promise<boolean>
 };
 
 // Real-time subscriptions
+// In lib/database.ts - Add debugging to your subscription functions
 export const subscribeToGroups = (callback: (groups: Group[]) => void) => {
+  // console.log('Setting up groups subscription...');
+  
   return supabase
     .channel('groups_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, (payload) => {
+      // console.log('Groups subscription triggered!', payload);
       getGroups().then(callback);
     })
-    .subscribe();
+    .subscribe((status) => {
+      // console.log('Groups subscription status:', status);
+    });
 };
 
 export const subscribeToGroupItems = (group_id: string, callback: (items: GroupItem[]) => void) => {
+  // console.log(`Setting up group items subscription for group: ${group_id}`);
+  
   return supabase
     .channel(`group_items_${group_id}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'group_items', filter: `group_id=eq.${group_id}` }, () => {
+    .on('postgres_changes', { 
+      event: '*', 
+      schema: 'public', 
+      table: 'group_items', 
+      filter: `group_id=eq.${group_id}` 
+    }, (payload) => {
+      // console.log('Group items subscription triggered!', payload);
       getGroupItems(group_id).then(callback);
     })
-    .subscribe();
-}; 
+    .subscribe((status) => {
+      // console.log(`Group items subscription status for ${group_id}:`, status);
+    });
+};

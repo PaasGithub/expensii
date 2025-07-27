@@ -26,8 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_group_items_group_id ON group_items(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_items_created_at ON group_items(created_at DESC);
 
 -- Enable Row Level Security (RLS) - for future authentication
-ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE group_items ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE group_items ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow all operations for now (no authentication)
 CREATE POLICY "Allow all operations on groups" ON groups

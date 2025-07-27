@@ -17,6 +17,7 @@ import { IconSymbol } from '../components/ui/IconSymbol';
 import { Group, GroupItem, CreateItemData } from '../../lib/types';
 import { getGroups, getGroupItems, createItem, deleteItem, subscribeToGroupItems } from '../../lib/database';
 import { formatDate, formatAmount, calculateRemainingAmount } from '../../lib/utils';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const GroupDetail = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +33,8 @@ const GroupDetail = () => {
     received_by: '',
     date: new Date().toISOString().split('T')[0],
   });
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -97,6 +100,10 @@ const GroupDetail = () => {
 
     const newItem = await createItem(itemData);
     if (newItem) {
+      // FORCE REFRESH
+      await loadGroupAndItems();
+
+      // CLEAR FORM DATA
       setModalVisible(false);
       setFormData({
         item_name: '',
@@ -123,6 +130,8 @@ const GroupDetail = () => {
           onPress: async () => {
             const success = await deleteItem(item.id, id);
             if (success) {
+              // FORCE REFRESH
+              await loadGroupAndItems();
               Alert.alert('Success', 'Item deleted successfully!');
             } else {
               Alert.alert('Error', 'Failed to delete item');

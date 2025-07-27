@@ -106,6 +106,10 @@ const Groups = () => {
     const groupData: CreateGroupData = { title: formData.title.trim(), amount, date: formData.date };
     const newGroup = await createGroup(groupData);
     if (newGroup) {
+      // FORCE REFRESH
+      await loadGroups();
+
+      // CLEAR FORM DATA
       setModalVisible(false);
       setFormData({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
       Alert.alert('Success', 'Group created successfully!');
@@ -122,6 +126,8 @@ const Groups = () => {
         style: 'destructive',
         onPress: async () => {
           const success = await deleteGroup(group.id);
+          // FORCE REFRESH
+          await loadGroups();
           Alert.alert(success ? 'Success' : 'Error', success ? 'Group deleted successfully!' : 'Failed to delete group');
         },
       },
