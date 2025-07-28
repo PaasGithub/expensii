@@ -337,6 +337,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   performanceButton: {
+    display: 'none',
     padding: 8,
   },
   headerTitle: {
