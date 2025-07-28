@@ -2,11 +2,20 @@
 CREATE TABLE IF NOT EXISTS groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
-  amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  amount DECIMAL(10,2) NOT NULL,
+  group_type TEXT NOT NULL CHECK (group_type IN ('add', 'subtract')) DEFAULT 'subtract',
   date DATE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add constraint after table creation to allow 0 amounts for add groups
+ALTER TABLE groups DROP CONSTRAINT IF EXISTS groups_amount_check;
+ALTER TABLE groups ADD CONSTRAINT groups_amount_check 
+  CHECK (
+    (group_type = 'add' AND amount >= 0) OR 
+    (group_type = 'subtract' AND amount > 0)
+  );
 
 -- Create group_items table
 CREATE TABLE IF NOT EXISTS group_items (

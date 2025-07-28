@@ -8,6 +8,7 @@ export const createGroup = async (data: CreateGroupData): Promise<Group | null> 
     .insert([{
       title: data.title,
       amount: data.amount,
+      group_type: data.group_type,
       date: data.date,
       last_activity: new Date().toISOString()
     }])
@@ -123,6 +124,34 @@ export const deleteItem = async (id: string, group_id: string): Promise<boolean>
     .eq('id', group_id);
 
   return true;
+};
+
+export const updateItem = async (id: string, group_id: string, data: Partial<CreateItemData>): Promise<GroupItem | null> => {
+  const { data: item, error } = await supabase
+    .from('group_items')
+    .update({
+      item_name: data.item_name,
+      amount: data.amount,
+      date: data.date,
+      sent_by: data.sent_by,
+      received_by: data.received_by
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating item:', error);
+    return null;
+  }
+
+  // Update group's last activity
+  await supabase
+    .from('groups')
+    .update({ last_activity: new Date().toISOString() })
+    .eq('id', group_id);
+
+  return item;
 };
 
 // Real-time subscriptions

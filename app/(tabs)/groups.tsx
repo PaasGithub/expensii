@@ -15,35 +15,35 @@ import {
 import { IconSymbol } from '../components/ui/IconSymbol';
 import { Group, CreateGroupData } from '../../lib/types';
 import { createGroup, getGroups, deleteGroup, subscribeToGroups, getGroupItems, subscribeToGroupItems } from '../../lib/database';
-import { formatDate, formatAmount, calculateRemainingAmount } from '../../lib/utils';
+import { formatDate, formatAmount, calculateRemainingAmount, calculateTotalAmount } from '../../lib/utils';
 import { router } from 'expo-router';
 
 // ---------- Group Card Component ----------
 const GroupCard = ({ item, handleDeleteGroup }: { item: Group; handleDeleteGroup: (group: Group) => void }) => {
-  const [remainingAmount, setRemainingAmount] = useState(item.amount);
+  const [displayAmount, setDisplayAmount] = useState(item.amount);
   const [loadingAmount, setLoadingAmount] = useState(true);
 
   useEffect(() => {
-    const loadRemainingAmount = async () => {
+    const loadDisplayAmount = async () => {
       const items = await getGroupItems(item.id);
-      const remaining = calculateRemainingAmount(item.amount, items);
-      setRemainingAmount(remaining);
+      const amount = calculateRemainingAmount(item.amount, items, item.group_type);
+      setDisplayAmount(amount);
       setLoadingAmount(false);
     };
 
-    loadRemainingAmount();
+    loadDisplayAmount();
 
     // Subscribe to real-time updates for this group's items
     const subscription = subscribeToGroupItems(item.id, (updatedItems) => {
-        const remaining = calculateRemainingAmount(item.amount, updatedItems);
-            setRemainingAmount(remaining);
-            setLoadingAmount(false);
-        });
+        const amount = calculateTotalAmount(item.amount, updatedItems, item.group_type);
+        setDisplayAmount(amount);
+        setLoadingAmount(false);
+    });
       
-        return () => {
-            subscription.unsubscribe();
-        };
-  }, [item.id, item.amount]);
+    return () => {
+        subscription.unsubscribe();
+    };
+  }, [item.id, item.amount, item.group_type]);
 
   return (
     <TouchableOpacity
@@ -52,16 +52,26 @@ const GroupCard = ({ item, handleDeleteGroup }: { item: Group; handleDeleteGroup
       onLongPress={() => handleDeleteGroup(item)}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.groupTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.groupTitle} numberOfLines={1}>
+          {item.group_type === 'add'
+            ?  `${item.title} (Add)`
+            : `${item.title}`
+          }
+        </Text>
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteGroup(item)}>
-          <IconSymbol name="trash" size={16} color="#FF4444" />
+          <IconSymbol name="trash" size={20} color="#FF4444" />
         </TouchableOpacity>
       </View>
       <View style={styles.amountContainer}>
         {loadingAmount ? (
           <ActivityIndicator size="small" color="#007AFF" />
         ) : (
-          <Text style={styles.amountText}>{formatAmount(remainingAmount)} / {formatAmount(item.amount)}</Text>
+          <Text style={styles.amountText}>
+            {item.group_type === 'add' 
+              ? `${formatAmount(displayAmount)}` 
+              : `${formatAmount(displayAmount)} / ${formatAmount(item.amount)}`
+            }
+          </Text>
         )}
       </View>
       <Text style={styles.dateText}>Created: {formatDate(item.created_at)}</Text>
@@ -74,7 +84,13 @@ const Groups = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [formData, setFormData] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
+  const [filterType, setFilterType] = useState<'all' | 'add' | 'subtract'>('all');
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    amount: '', 
+    group_type: 'subtract' as 'add' | 'subtract',
+    date: new Date().toISOString().split('T')[0] 
+  });
 
   useEffect(() => {
     loadGroups();
@@ -92,18 +108,32 @@ const Groups = () => {
   };
 
   const handleCreateGroup = async () => {
-    if (!formData.title.trim() || !formData.amount.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!formData.title.trim()) {
+      Alert.alert('Error', 'Please fill in the group title');
       return;
     }
 
-    const amount = parseFloat(formData.amount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
+    let amount = 0;
+    if (formData.group_type === 'subtract') {
+      if (!formData.amount.trim()) {
+        Alert.alert('Error', 'Please enter an amount for subtract groups');
+        return;
+      }
+      amount = parseFloat(formData.amount);
+      if (isNaN(amount) || amount <= 0) {
+        Alert.alert('Error', 'Please enter a valid amount');
+        return;
+      }
+    }else{amount = 0;}
 
-    const groupData: CreateGroupData = { title: formData.title.trim(), amount, date: formData.date };
+    
+
+    const groupData: CreateGroupData = { 
+      title: formData.title.trim(), 
+      amount, 
+      group_type: formData.group_type,
+      date: formData.date 
+    };
     const newGroup = await createGroup(groupData);
     if (newGroup) {
       // FORCE REFRESH
@@ -111,7 +141,12 @@ const Groups = () => {
 
       // CLEAR FORM DATA
       setModalVisible(false);
-      setFormData({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
+      setFormData({ 
+        title: '', 
+        amount: '', 
+        group_type: 'subtract',
+        date: new Date().toISOString().split('T')[0] 
+      });
       Alert.alert('Success', 'Group created successfully!');
     } else {
       Alert.alert('Error', 'Failed to create group');
@@ -145,13 +180,42 @@ const Groups = () => {
     );
   }
 
+  const filteredGroups = groups.filter(group => {
+    if (filterType === 'all') return true;
+    return group.group_type === filterType;
+  });
+
+  const getFilterIcon = () => {
+    switch (filterType) {
+      case 'add': return 'plus.circle';
+      case 'subtract': return 'minus.circle';
+      default: return 'line.3.horizontal.decrease.circle';
+    }
+  };
+
+  const cycleFilter = () => {
+    setFilterType(prev => {
+      switch (prev) {
+        case 'all': return 'add';
+        case 'add': return 'subtract';
+        case 'subtract': return 'all';
+        default: return 'all';
+      }
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Groups</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-          <IconSymbol name="plus" size={24} color="white" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.filterButton} onPress={cycleFilter}>
+            <IconSymbol name={getFilterIcon()} size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+            <IconSymbol name="plus" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {groups.length === 0 ? (
@@ -162,7 +226,7 @@ const Groups = () => {
         </View>
       ) : (
         <FlatList
-          data={groups}
+          data={filteredGroups}
           renderItem={({ item }) => <GroupCard item={item} handleDeleteGroup={handleDeleteGroup} />}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
@@ -183,10 +247,47 @@ const Groups = () => {
             <TextInput style={styles.input} placeholder="Group Title"
               placeholderTextColor="#999" 
               value={formData.title} onChangeText={(text) => setFormData({ ...formData, title: text })} />
-            <TextInput style={styles.input} placeholder="Amount (₵)"
-              placeholderTextColor="#999" 
-              value={formData.amount} onChangeText={(text) => setFormData({ ...formData, amount: text })}
-              keyboardType="numeric" />
+            
+            {/* Group Type Selection */}
+            <View style={styles.typeContainer}>
+              <Text style={styles.typeLabel}>Group Type:</Text>
+              <View style={styles.typeButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    formData.group_type === 'add' && styles.typeButtonActive
+                  ]}
+                  onPress={() => setFormData({ ...formData, group_type: 'add' })}
+                >
+                  <IconSymbol name="plus" size={16} color={formData.group_type === 'add' ? 'white' : '#007AFF'} />
+                  <Text style={[
+                    styles.typeButtonText,
+                    formData.group_type === 'add' && styles.typeButtonTextActive
+                  ]}>Add</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    formData.group_type === 'subtract' && styles.typeButtonActive
+                  ]}
+                  onPress={() => setFormData({ ...formData, group_type: 'subtract' })}
+                >
+                  <IconSymbol name="minus" size={16} color={formData.group_type === 'subtract' ? 'white' : '#007AFF'} />
+                  <Text style={[
+                    styles.typeButtonText,
+                    formData.group_type === 'subtract' && styles.typeButtonTextActive
+                  ]}>Subtract</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {formData.group_type === 'subtract' && (
+              <TextInput style={styles.input} placeholder="Amount (₵)"
+                placeholderTextColor="#999" 
+                value={formData.amount} onChangeText={(text) => setFormData({ ...formData, amount: text })}
+                keyboardType="numeric" />
+            )}
+            
             <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)"
               placeholderTextColor="#999" 
               value={formData.date} onChangeText={(text) => setFormData({ ...formData, date: text })} />
@@ -215,6 +316,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#E9ECEF',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  filterButton: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -357,6 +466,42 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  typeContainer: {
+    marginBottom: 16,
+  },
+  typeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 8,
+  },
+  typeButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  typeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    backgroundColor: 'white',
+    gap: 6,
+  },
+  typeButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  typeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  typeButtonTextActive: {
+    color: 'white',
   },
 });
 
