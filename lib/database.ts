@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Group, GroupItem, CreateGroupData, CreateItemData } from './types';
+import { performanceMonitor } from './utils';
 
 // Groups functions
 export const createGroup = async (data: CreateGroupData): Promise<Group | null> => {
@@ -35,6 +36,36 @@ export const getGroups = async (): Promise<Group[]> => {
   }
 
   return groups || [];
+};
+
+export const getGroupsWithCalculatedAmounts = async (): Promise<(Group & { calculated_amount: number })[]> => {
+  const { data: groups, error } = await supabase
+    .from('groups')
+    .select(`
+      *,
+      group_items(amount)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching groups with amounts:', error);
+    return [];
+  }
+
+  // Calculate amounts for each group
+  const groupsWithAmounts = (groups || []).map(group => {
+    const totalItems = group.group_items?.reduce((sum: number, item: any) => sum + item.amount, 0) || 0;
+    const calculatedAmount = group.group_type === 'add' 
+      ? totalItems 
+      : group.amount - totalItems;
+    
+    return {
+      ...group,
+      calculated_amount: calculatedAmount
+    };
+  });
+
+  return groupsWithAmounts;
 };
 
 export const deleteGroup = async (id: string): Promise<boolean> => {

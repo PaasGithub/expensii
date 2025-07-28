@@ -17,6 +17,7 @@ import { Group, CreateGroupData } from '../../lib/types';
 import { createGroup, getGroups, deleteGroup, subscribeToGroups, getGroupItems, subscribeToGroupItems } from '../../lib/database';
 import { formatDate, formatAmount, calculateRemainingAmount, calculateTotalAmount } from '../../lib/utils';
 import { router } from 'expo-router';
+import { PerformanceMonitor } from '../components/PerformanceMonitor';
 
 // ---------- Group Card Component ----------
 const GroupCard = ({ item, handleDeleteGroup }: { item: Group; handleDeleteGroup: (group: Group) => void }) => {
@@ -85,6 +86,7 @@ const Groups = () => {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'add' | 'subtract'>('all');
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
   const [formData, setFormData] = useState({ 
     title: '', 
     amount: '', 
@@ -212,6 +214,9 @@ const Groups = () => {
           <TouchableOpacity style={styles.filterButton} onPress={cycleFilter}>
             <IconSymbol name={getFilterIcon()} size={24} color="#007AFF" />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.performanceButton} onPress={() => setShowPerformanceMonitor(true)}>
+            <IconSymbol name="chart.bar" size={20} color="#6C757D" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
             <IconSymbol name="plus" size={24} color="white" />
           </TouchableOpacity>
@@ -233,6 +238,12 @@ const Groups = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Performance Monitor */}
+      <PerformanceMonitor 
+        visible={showPerformanceMonitor} 
+        onClose={() => setShowPerformanceMonitor(false)} 
+      />
 
       {/* Create Group Modal */}
       <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
@@ -323,6 +334,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   filterButton: {
+    padding: 8,
+  },
+  performanceButton: {
     padding: 8,
   },
   headerTitle: {
